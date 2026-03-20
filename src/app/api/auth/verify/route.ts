@@ -22,5 +22,11 @@ function resolveNextPath(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  return NextResponse.redirect(new URL(resolveNextPath(request), request.url));
+  return new NextResponse(null, {
+    status: 302,
+    headers: {
+      Location: resolveNextPath(request),
+      'Cache-Control': 'no-store',
+    },
+  });
 }
