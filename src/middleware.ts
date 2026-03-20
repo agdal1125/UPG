@@ -9,7 +9,7 @@ function unauthorizedResponse(message = 'Authentication required.') {
   return new NextResponse(message, {
     status: 401,
     headers: {
-      'WWW-Authenticate': 'Basic realm="UPG", charset="UTF-8"',
+      'WWW-Authenticate': 'Basic realm="UPG Protected Actions", charset="UTF-8"',
       'Cache-Control': 'no-store',
     },
   });
@@ -45,13 +45,40 @@ function isPublicPath(pathname: string) {
   );
 }
 
+function isProtectedAction(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const method = request.method.toUpperCase();
+
+  if (pathname === '/api/auth/verify') {
+    return true;
+  }
+
+  if (pathname === '/api/llm' && method === 'POST') {
+    return true;
+  }
+
+  if (pathname === '/api/render-prompt' && method === 'POST') {
+    return true;
+  }
+
+  if (pathname === '/api/prompts' && ['POST', 'PUT', 'DELETE'].includes(method)) {
+    return true;
+  }
+
+  if (pathname === '/api/history' && ['POST', 'DELETE'].includes(method)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function middleware(request: NextRequest) {
   if (!isBasicAuthEnabled()) {
     return NextResponse.next();
   }
 
   const { pathname } = request.nextUrl;
-  if (isPublicPath(pathname)) {
+  if (isPublicPath(pathname) || !isProtectedAction(request)) {
     return NextResponse.next();
   }
 

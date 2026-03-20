@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getProtectedUnlockUrl } from '@/lib/auth-client';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Playground', icon: '▶' },
-  { href: '/prompts', label: 'Prompts', icon: '📝' },
-  { href: '/history', label: 'History', icon: '📊' },
+  { href: '/', label: 'Playground', icon: 'P' },
+  { href: '/prompts', label: 'Prompts', icon: 'R' },
+  { href: '/history', label: 'History', icon: 'H' },
 ];
 
 export default function Sidebar() {
@@ -35,7 +36,7 @@ export default function Sidebar() {
         </p>
       </div>
 
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -56,15 +57,48 @@ export default function Sidebar() {
                 transition: 'all 0.15s',
               }}
             >
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
+              <span style={{
+                width: 20,
+                height: 20,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 999,
+                border: '1px solid var(--border-color)',
+                fontSize: 11,
+              }}>
+                {item.icon}
+              </span>
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div style={{ padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)' }}>
-        v1.0.0
+      <div style={{ marginTop: 'auto', padding: '16px 20px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+          padding: 12,
+          borderRadius: 10,
+          border: '1px solid var(--border-color)',
+          background: 'var(--bg-tertiary)',
+          fontSize: 11,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.5,
+        }}>
+          Viewing is public.
+          <br />
+          Running models and saving prompt changes require authentication.
+        </div>
+        <a
+          href={getProtectedUnlockUrl()}
+          className="btn btn-secondary btn-sm"
+          style={{ textAlign: 'center', textDecoration: 'none' }}
+        >
+          Unlock Actions
+        </a>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          v1.0.0
+        </div>
       </div>
     </aside>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PromptSet } from '@/types';
 import { usePlaygroundStore } from '@/store/playground';
 import { createCopyName } from '@/lib/utils';
+import { ensureAuthorizedResponse } from '@/lib/auth-client';
 
 export default function PromptEditor() {
   const {
@@ -61,6 +62,9 @@ export default function PromptEditor() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!(await ensureAuthorizedResponse(res, 'Saving prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
     if (!res.ok) return;
 
     const saved = await res.json();
@@ -71,7 +75,11 @@ export default function PromptEditor() {
   };
 
   const deletePromptSet = async (id: string) => {
-    await fetch(`/api/prompts?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/prompts?id=${id}`, { method: 'DELETE' });
+    if (!(await ensureAuthorizedResponse(res, 'Deleting prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
+    if (!res.ok) return;
 
     if (currentPromptSetId === id) {
       setCurrentPromptSetId(null);
@@ -95,7 +103,9 @@ export default function PromptEditor() {
         response_format: responseFormat || null,
       }),
     });
-
+    if (!(await ensureAuthorizedResponse(res, 'Duplicating prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
     if (!res.ok) return;
 
     const duplicated = await res.json();

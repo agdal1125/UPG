@@ -1,5 +1,5 @@
-node_modules/
 .next/
 .env.local
 .env
-data/upg.db
+/node_modules
+upg.db*

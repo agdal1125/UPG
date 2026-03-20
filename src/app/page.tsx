@@ -4,6 +4,7 @@ import PromptEditor from '@/components/playground/PromptEditor';
 import ModelSelector from '@/components/playground/ModelSelector';
 import ParameterPanel from '@/components/playground/ParameterPanel';
 import ResultGrid from '@/components/playground/ResultGrid';
+import { ensureAuthorizedResponse } from '@/lib/auth-client';
 import { calculateCost } from '@/lib/pricing';
 import { generateId } from '@/lib/utils';
 import { usePlaygroundStore } from '@/store/playground';
@@ -70,29 +71,6 @@ async function fetchPromptSets(): Promise<PromptSet[]> {
   }
 
   return await response.json() as PromptSet[];
-}
-
-async function renderPrompt(prompt: RunnablePrompt): Promise<RenderedPrompt> {
-  const response = await fetch('/api/render-prompt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemPrompt: prompt.systemPrompt,
-      userPrompt: prompt.userPrompt,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => null);
-    throw new Error(`${prompt.label}: ${errorPayload?.error || 'Failed to render prompt templates.'}`);
-  }
-
-  const rendered = await response.json();
-  return {
-    ...prompt,
-    renderedSystemPrompt: rendered.systemPrompt || '',
-    renderedUserPrompt: rendered.userPrompt || '',
-  };
 }
 
 export default function PlaygroundPage() {
@@ -166,10 +144,37 @@ export default function PlaygroundPage() {
     let renderedPrompts: RenderedPrompt[] = [];
 
     try {
-      renderedPrompts = await Promise.all(runnablePrompts.map(renderPrompt));
+      renderedPrompts = await Promise.all(runnablePrompts.map(async (prompt) => {
+        const response = await fetch('/api/render-prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemPrompt: prompt.systemPrompt,
+            userPrompt: prompt.userPrompt,
+          }),
+        });
+
+        if (!(await ensureAuthorizedResponse(response, 'Running prompts requires authentication. Unlock protected actions now?'))) {
+          throw new Error('Authentication required to run prompts.');
+        }
+
+        if (!response.ok) {
+          const errorPayload = await response.json().catch(() => null);
+          throw new Error(`${prompt.label}: ${errorPayload?.error || 'Failed to render prompt templates.'}`);
+        }
+
+        const rendered = await response.json();
+        return {
+          ...prompt,
+          renderedSystemPrompt: rendered.systemPrompt || '',
+          renderedUserPrompt: rendered.userPrompt || '',
+        };
+      }));
     } catch (error) {
       store.setIsRunning(false);
-      window.alert(error instanceof Error ? error.message : String(error));
+      if (!(error instanceof Error && error.message === 'Authentication required to run prompts.')) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
       return;
     }
 
@@ -223,6 +228,9 @@ export default function PlaygroundPage() {
         });
 
         if (!response.ok) {
+          if (!(await ensureAuthorizedResponse(response, 'Running models requires authentication. Unlock protected actions now?'))) {
+            throw new Error('Authentication required to run models.');
+          }
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
         }
 
@@ -291,7 +299,9 @@ export default function PlaygroundPage() {
       } catch (error) {
         store.updateResult(entry.id, {
           status: 'error',
-          error: error instanceof Error ? error.message : String(error),
+          error: error instanceof Error && error.message === 'Authentication required to run models.'
+            ? 'Authentication required.'
+            : error instanceof Error ? error.message : String(error),
           latencyMs: Date.now() - startTime,
         });
       }
@@ -303,7 +313,7 @@ export default function PlaygroundPage() {
       await Promise.allSettled(renderedPrompts.map(async (prompt) => {
         const promptResults = finalResults.filter((result) => result.promptKey === prompt.key);
 
-        await fetch('/api/history', {
+        const response = await fetch('/api/history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -328,6 +338,9 @@ export default function PlaygroundPage() {
             })),
           }),
         });
+        if (!(await ensureAuthorizedResponse(response, 'Saving run history requires authentication. Unlock protected actions now?'))) {
+          return;
+        }
       }));
     } catch {
       // Keep the UI usable even if history persistence fails.

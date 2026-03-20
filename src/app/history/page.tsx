@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { TestRun, TestResult } from '@/types';
 import { PROVIDER_COLORS, PROVIDER_LABELS, getModelInfo } from '@/lib/pricing';
 import { formatCost, formatLatency, formatTokens } from '@/lib/utils';
+import { ensureAuthorizedResponse } from '@/lib/auth-client';
 
 interface RunSummary extends TestRun {
   resultCount: number;
@@ -42,7 +43,11 @@ export default function HistoryPage() {
   };
 
   const deleteRun = async (runId: string) => {
-    await fetch(`/api/history?runId=${runId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/history?runId=${runId}`, { method: 'DELETE' });
+    if (!(await ensureAuthorizedResponse(res, 'Deleting history requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
+    if (!res.ok) return;
     if (selectedRun?.id === runId) setSelectedRun(null);
     loadRuns();
   };

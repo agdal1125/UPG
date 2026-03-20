@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PromptSet } from '@/types';
 import { createCopyName } from '@/lib/utils';
+import { ensureAuthorizedResponse } from '@/lib/auth-client';
 
 export default function PromptsPage() {
   const [prompts, setPrompts] = useState<PromptSet[]>([]);
@@ -18,7 +19,7 @@ export default function PromptsPage() {
 
   const save = async () => {
     const method = editing ? 'PUT' : 'POST';
-    await fetch('/api/prompts', {
+    const res = await fetch('/api/prompts', {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -29,6 +30,10 @@ export default function PromptsPage() {
         response_format: form.responseFormat || null,
       }),
     });
+    if (!(await ensureAuthorizedResponse(res, 'Saving prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
+    if (!res.ok) return;
     setEditing(null);
     setShowCreate(false);
     setForm({ name: '', systemPrompt: '', userPrompt: '', responseFormat: '' });
@@ -36,12 +41,16 @@ export default function PromptsPage() {
   };
 
   const remove = async (id: string) => {
-    await fetch(`/api/prompts?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/prompts?id=${id}`, { method: 'DELETE' });
+    if (!(await ensureAuthorizedResponse(res, 'Deleting prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
+    if (!res.ok) return;
     load();
   };
 
   const duplicate = async (ps: PromptSet) => {
-    await fetch('/api/prompts', {
+    const res = await fetch('/api/prompts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -51,6 +60,10 @@ export default function PromptsPage() {
         response_format: ps.responseFormat || null,
       }),
     });
+    if (!(await ensureAuthorizedResponse(res, 'Duplicating prompts requires authentication. Unlock protected actions now?'))) {
+      return;
+    }
+    if (!res.ok) return;
     load();
   };
 
