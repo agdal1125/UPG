@@ -1,0 +1,234 @@
+# UPG (Ultimate Prompt Ground) - Implementation Plan
+
+## Context
+LLM 프롬프트 테스트 시 모델/프롬프트 버전 관리가 번거롭고, 여러 모델의 결과를 비교하기 어려움.
+Next.js 기반 웹 대시보드를 구축하여 프롬프트 비교 테스트, 비용/응답시간 분석을 한 곳에서 수행할 수 있도록 함.
+
+## Tech Stack
+- **Frontend**: Next.js 14 (App Router) + React + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend**: Next.js API Routes (Route Handlers)
+- **Database**: SQLite (better-sqlite3) - 테스트 이력, 프롬프트 버전 관리
+- **API Keys**: 서버 .env 파일
+- **State Management**: Zustand (경량, 간단)
+
+## Supported LLM Providers & Models
+
+### OpenAI (`https://api.openai.com/v1/chat/completions`)
+- gpt-5.4, gpt-5.4-mini, gpt-5.4-nano, gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, o4-mini, o3, o3-mini, gpt-4o, gpt-4o-mini
+
+### Anthropic Claude (`https://api.anthropic.com/v1/messages`)
+- claude-opus-4-6-20250626, claude-sonnet-4-5-20250514, claude-haiku-4-5-20251001
+
+### Google Gemini (`https://generativelanguage.googleapis.com/v1beta`)
+- gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash
+
+### Perplexity (`https://api.perplexity.ai/chat/completions`)
+- sonar-pro, sonar-reasoning-pro, sonar, sonar-deep-research
+
+---
+
+## Project Structure
+
+```
+UPG/
+├── .env.local                  # API keys
+├── next.config.js
+├── package.json
+├── tailwind.config.ts
+├── tsconfig.json
+├── data/
+│   ├── upg.db                  # SQLite database
+│   └── prompts/                # 프롬프트 파일 저장 폴더
+│       └── example/
+│           ├── system.md
+│           └── user.md
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout (sidebar nav)
+│   │   ├── page.tsx            # Main: Playground 화면
+│   │   ├── history/
+│   │   │   └── page.tsx        # 테스트 이력 조회
+│   │   ├── prompts/
+│   │   │   └── page.tsx        # 프롬프트 라이브러리 관리
+│   │   └── api/
+│   │       ├── llm/
+│   │       │   └── route.ts    # LLM API 프록시 (비동기 호출)
+│   │       ├── prompts/
+│   │       │   └── route.ts    # 프롬프트 CRUD
+│   │       └── history/
+│   │           └── route.ts    # 테스트 이력 CRUD
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── Header.tsx
+│   │   ├── playground/
+│   │   │   ├── PromptEditor.tsx      # 시스템/유저 프롬프트 에디터
+│   │   │   ├── ModelSelector.tsx     # 모델 선택 (멀티 셀렉트)
+│   │   │   ├── ParameterPanel.tsx    # temperature, top_p, max_tokens 등
+│   │   │   ├── ResponseFormatEditor.tsx  # JSON Schema 에디터
+│   │   │   ├── ResultPanel.tsx       # 단일 결과 패널
+│   │   │   ├── ResultGrid.tsx        # 결과 비교 그리드
+│   │   │   ├── CostBadge.tsx         # 비용/시간 표시
+│   │   │   └── HtmlPreview.tsx       # HTML 렌더링 미리보기
+│   │   ├── prompts/
+│   │   │   ├── PromptLibrary.tsx     # 프롬프트 목록/검색
+│   │   │   └── PromptCard.tsx
+│   │   └── history/
+│   │       ├── HistoryTable.tsx
+│   │       └── HistoryDetail.tsx
+│   ├── lib/
+│   │   ├── db.ts               # SQLite 연결/스키마 초기화
+│   │   ├── providers/
+│   │   │   ├── index.ts        # Provider registry & unified interface
+│   │   │   ├── openai.ts       # OpenAI API 호출
+│   │   │   ├── anthropic.ts    # Claude API 호출
+│   │   │   ├── gemini.ts       # Gemini API 호출
+│   │   │   └── perplexity.ts   # Perplexity API 호출
+│   │   ├── pricing.ts          # 모델별 가격 테이블 & 비용 계산
+│   │   └── utils.ts            # 공통 유틸리티
+│   ├── store/
+│   │   └── playground.ts       # Zustand store
+│   └── types/
+│       └── index.ts            # 공통 타입 정의
+```
+
+---
+
+## Database Schema (SQLite)
+
+```sql
+-- 프롬프트 세트
+CREATE TABLE prompt_sets (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  system_prompt TEXT,
+  user_prompt TEXT,
+  response_format TEXT,        -- JSON Schema (nullable)
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- 테스트 실행
+CREATE TABLE test_runs (
+  id TEXT PRIMARY KEY,
+  prompt_set_id TEXT REFERENCES prompt_sets(id),
+  system_prompt TEXT,          -- 스냅샷 (실행 당시 값)
+  user_prompt TEXT,
+  response_format TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  memo TEXT
+);
+
+-- 개별 결과
+CREATE TABLE test_results (
+  id TEXT PRIMARY KEY,
+  run_id TEXT REFERENCES test_runs(id),
+  provider TEXT NOT NULL,      -- openai, anthropic, gemini, perplexity
+  model TEXT NOT NULL,
+  parameters TEXT,             -- JSON: {temperature, top_p, max_tokens, ...}
+  response TEXT,               -- 전체 응답 텍스트
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  cost_usd REAL,
+  latency_ms INTEGER,
+  status TEXT DEFAULT 'pending', -- pending, streaming, success, error
+  error TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+```
+
+---
+
+## Implementation Steps
+
+### Step 1: 프로젝트 초기 설정
+- Next.js 14 + TypeScript + Tailwind CSS 프로젝트 생성
+- shadcn/ui 설치 및 구성
+- Zustand, better-sqlite3, uuid 등 의존성 설치
+- .env.local 템플릿 작성
+- `files`: package.json, next.config.js, tailwind.config.ts, .env.example
+
+### Step 2: 데이터베이스 & 타입 정의
+- SQLite 스키마 초기화 (src/lib/db.ts)
+- TypeScript 타입 정의 (src/types/index.ts)
+- 가격 테이블 정의 (src/lib/pricing.ts)
+- `files`: src/lib/db.ts, src/types/index.ts, src/lib/pricing.ts
+
+### Step 3: LLM Provider 구현
+- 통합 인터페이스 정의 (LLMProvider interface)
+- 4개 프로바이더 각각 구현 (스트리밍 포함)
+- 각 API의 인증/요청/응답 포맷 차이 처리
+- Structured Output (JSON Schema) 지원
+- `files`: src/lib/providers/*.ts
+
+### Step 4: API Routes 구현
+- POST /api/llm - LLM 호출 프록시 (스트리밍 SSE 지원)
+- GET/POST/DELETE /api/prompts - 프롬프트 CRUD
+- GET/POST /api/history - 테스트 이력 관리
+- `files`: src/app/api/**/*.ts
+
+### Step 5: UI 레이아웃 & 공통 컴포넌트
+- Root layout (사이드바 네비게이션)
+- shadcn/ui 컴포넌트 설치 (Button, Card, Select, Tabs, Dialog, etc.)
+- `files`: src/app/layout.tsx, src/components/layout/*
+
+### Step 6: 메인 Playground 페이지
+- **좌측**: 프롬프트 에디터 (시스템 + 유저 프롬프트)
+  - 저장된 프롬프트 불러오기/저장/편집/삭제
+  - 자유 입력 모드
+- **중앙 상단**: 모델 멀티 셀렉트 + 파라미터 패널
+  - 모델별 개별 파라미터 오버라이드 가능
+  - Response Format (JSON Schema) 에디터
+- **우측/하단**: 결과 비교 그리드
+  - 모델별 결과 카드 (실시간 스트리밍)
+  - 각 카드에 비용, 응답시간, 토큰 수 표시
+  - Raw JSON / Formatted / HTML Preview 탭
+- **실행 버튼**: 선택된 모든 모델에 비동기 동시 호출
+- `files`: src/app/page.tsx, src/components/playground/*
+
+### Step 7: 결과 시각화 & HTML Preview
+- ResultPanel: Raw / Formatted / HTML 탭 전환
+- HTML Preview: 업로드한 HTML 템플릿에 결과 주입하여 렌더링
+- 파싱 코드 업로드 기능 (JS/HTML 파일)
+- 결과 간 diff 비교 기능
+- `files`: src/components/playground/ResultPanel.tsx, HtmlPreview.tsx
+
+### Step 8: 프롬프트 라이브러리 페이지
+- data/prompts/ 폴더 기반 프롬프트 관리
+- 프롬프트 세트 목록/생성/편집/삭제
+- 태그/카테고리 분류
+- `files`: src/app/prompts/page.tsx, src/components/prompts/*
+
+### Step 9: 테스트 이력 페이지
+- 테스트 실행 이력 테이블 (필터/검색)
+- 상세 보기: 실행 당시 프롬프트 + 모든 모델 결과 비교
+- 비용 통계 대시보드 (일별/모델별 사용량)
+- CSV/JSON 내보내기
+- `files`: src/app/history/page.tsx, src/components/history/*
+
+### Step 10: 비용/효율 분석 유틸리티
+- 모델별 비용 비교 차트 (Recharts)
+- 응답시간 비교 차트
+- 토큰 사용량 통계
+- 비용 추정 계산기 (예상 호출량 기반)
+- `files`: 히스토리 페이지에 통합
+
+---
+
+## Key Design Decisions
+
+1. **스트리밍 SSE**: 모든 LLM 호출을 SSE로 스트리밍하여 실시간 결과 확인
+2. **비동기 동시 호출**: Promise.allSettled로 선택된 모든 모델 동시 호출
+3. **프롬프트 스냅샷**: 테스트 실행 시 프롬프트를 복사 저장하여 이력 무결성 보장
+4. **Provider 추상화**: 통합 인터페이스로 새 프로바이더 추가 용이
+5. **비용 자동 계산**: 응답의 usage 필드로 실시간 비용 표시
+
+---
+
+## Verification Plan
+1. `npm run dev`로 로컬 서버 실행 후 브라우저에서 확인
+2. 각 LLM 프로바이더별 API 호출 테스트 (API 키 설정 필요)
+3. 프롬프트 저장/로드/편집/삭제 동작 확인
+4. 멀티 모델 동시 호출 + 스트리밍 결과 표시 확인
+5. 테스트 이력 저장 및 조회 확인
+6. 비용 계산 정확성 확인

@@ -1,0 +1,1 @@
+Explain the difference between REST and GraphQL APIs in 3 bullet points.
