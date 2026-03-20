@@ -75,6 +75,11 @@ function initSchema(db: Database.Database) {
       provider TEXT NOT NULL,
       model TEXT NOT NULL,
       parameters TEXT,
+      request_method TEXT,
+      request_url TEXT,
+      request_headers TEXT,
+      request_body TEXT,
+      request_code TEXT,
       response TEXT,
       input_tokens INTEGER DEFAULT 0,
       output_tokens INTEGER DEFAULT 0,
@@ -95,6 +100,11 @@ function initSchema(db: Database.Database) {
   ensureColumn(db, 'test_runs', 'prompt_label', 'TEXT');
   ensureColumn(db, 'test_runs', 'prompt_source', 'TEXT');
   ensureColumn(db, 'test_runs', 'prompt_order', 'INTEGER DEFAULT 0');
+  ensureColumn(db, 'test_results', 'request_method', 'TEXT');
+  ensureColumn(db, 'test_results', 'request_url', 'TEXT');
+  ensureColumn(db, 'test_results', 'request_headers', 'TEXT');
+  ensureColumn(db, 'test_results', 'request_body', 'TEXT');
+  ensureColumn(db, 'test_results', 'request_code', 'TEXT');
 
   db.exec('CREATE INDEX IF NOT EXISTS idx_test_runs_batch_id ON test_runs(batch_id)');
 }

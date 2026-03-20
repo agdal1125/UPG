@@ -1,6 +1,6 @@
 import { LLMRequest } from '@/types';
 import { ProviderCallResult, StreamCallback } from './index';
-import { appendAdditionalParams } from './shared';
+import { appendAdditionalParams, createRequestDebug } from './shared';
 
 const BASE_URL = 'https://api.openai.com/v1/responses';
 const REASONING_MODELS = ['gpt-5', 'o3', 'o3-mini', 'o4-mini'];
@@ -317,6 +317,17 @@ function buildBody(req: LLMRequest, stream: boolean) {
 async function handleError(res: Response) {
   const err = await res.text();
   throw new Error(`OpenAI API error ${res.status}: ${err}`);
+}
+
+export function buildOpenAIRequestDebug(req: LLMRequest) {
+  return createRequestDebug(
+    BASE_URL,
+    {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $OPENAI_API_KEY',
+    },
+    buildBody(req, true),
+  );
 }
 
 export async function callOpenAI(req: LLMRequest): Promise<ProviderCallResult> {

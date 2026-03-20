@@ -7,8 +7,8 @@ import ResultGrid from '@/components/playground/ResultGrid';
 import { ensureAuthorizedResponse } from '@/lib/auth-client';
 import { calculateCost } from '@/lib/pricing';
 import { generateId } from '@/lib/utils';
-import { usePlaygroundStore } from '@/store/playground';
-import { LLMParameters, PromptSet, Provider } from '@/types';
+import { ResultEntry, usePlaygroundStore } from '@/store/playground';
+import { LLMParameters, PromptSet, Provider, ProviderRequestDebug } from '@/types';
 
 interface RunnablePrompt {
   key: string;
@@ -270,10 +270,24 @@ export default function PlaygroundPage() {
                   outputTokens: Number(chunk.outputTokens || 0),
                 });
               } else if (chunk.type === 'meta') {
-                store.updateResult(entry.id, {
-                  latencyMs: Number(chunk.latencyMs || Date.now() - startTime),
-                  costUsd: Number(chunk.costUsd || 0),
-                });
+                const update: Partial<ResultEntry> = {};
+
+                if (chunk.latencyMs !== undefined) {
+                  update.latencyMs = Number(chunk.latencyMs);
+                }
+                if (chunk.costUsd !== undefined) {
+                  update.costUsd = Number(chunk.costUsd);
+                }
+                if (chunk.requestDebug && typeof chunk.requestDebug === 'object') {
+                  const requestDebug = chunk.requestDebug as ProviderRequestDebug;
+                  update.requestMethod = requestDebug.method;
+                  update.requestUrl = requestDebug.url;
+                  update.requestHeaders = JSON.stringify(requestDebug.headers, null, 2);
+                  update.requestBody = JSON.stringify(requestDebug.body, null, 2);
+                  update.requestCode = requestDebug.code;
+                }
+
+                store.updateResult(entry.id, update);
               } else if (chunk.type === 'error') {
                 store.updateResult(entry.id, {
                   status: 'error',
@@ -339,6 +353,11 @@ export default function PlaygroundPage() {
               provider: result.provider,
               model: result.model,
               parameters: result.parameters,
+              requestMethod: result.requestMethod,
+              requestUrl: result.requestUrl,
+              requestHeaders: result.requestHeaders,
+              requestBody: result.requestBody,
+              requestCode: result.requestCode,
               response: result.content,
               inputTokens: result.inputTokens,
               outputTokens: result.outputTokens,

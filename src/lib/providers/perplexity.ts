@@ -1,6 +1,6 @@
 import { LLMRequest, StreamChunk } from '@/types';
 import { ProviderCallResult, StreamCallback } from './index';
-import { appendAdditionalParams } from './shared';
+import { appendAdditionalParams, createRequestDebug } from './shared';
 
 const BASE_URL = 'https://api.perplexity.ai/chat/completions';
 
@@ -40,6 +40,17 @@ function buildBody(req: LLMRequest, stream: boolean) {
   }
 
   return appendAdditionalParams(body, req.parameters, handledKeys);
+}
+
+export function buildPerplexityRequestDebug(req: LLMRequest) {
+  return createRequestDebug(
+    BASE_URL,
+    {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $PERPLEXITY_API_KEY',
+    },
+    buildBody(req, true),
+  );
 }
 
 export async function callPerplexity(req: LLMRequest): Promise<ProviderCallResult> {

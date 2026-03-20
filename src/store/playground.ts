@@ -18,6 +18,11 @@ export interface ResultEntry {
   provider: Provider;
   model: string;
   parameters: LLMParameters;
+  requestMethod?: string;
+  requestUrl?: string;
+  requestHeaders?: string;
+  requestBody?: string;
+  requestCode?: string;
   content: string;
   inputTokens: number;
   outputTokens: number;

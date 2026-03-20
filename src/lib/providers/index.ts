@@ -1,9 +1,9 @@
-import { LLMRequest, StreamChunk } from '@/types';
-import { callOpenAI, streamOpenAI } from './openai';
-import { callAnthropic, streamAnthropic } from './anthropic';
-import { callGemini, streamGemini } from './gemini';
-import { callPerplexity, streamPerplexity } from './perplexity';
-import { callPerplexityAgent, streamPerplexityAgent } from './perplexity-agent';
+import { LLMRequest, ProviderRequestDebug, StreamChunk } from '@/types';
+import { buildOpenAIRequestDebug, callOpenAI, streamOpenAI } from './openai';
+import { buildAnthropicRequestDebug, callAnthropic, streamAnthropic } from './anthropic';
+import { buildGeminiRequestDebug, callGemini, streamGemini } from './gemini';
+import { buildPerplexityRequestDebug, callPerplexity, streamPerplexity } from './perplexity';
+import { buildPerplexityAgentRequestDebug, callPerplexityAgent, streamPerplexityAgent } from './perplexity-agent';
 
 export interface ProviderCallResult {
   content: string;
@@ -34,6 +34,17 @@ export async function streamLLM(
     case 'gemini': return streamGemini(req, onChunk);
     case 'perplexity': return streamPerplexity(req, onChunk);
     case 'perplexity-agent': return streamPerplexityAgent(req, onChunk);
+    default: throw new Error(`Unknown provider: ${req.provider}`);
+  }
+}
+
+export function buildProviderRequestDebug(req: LLMRequest): ProviderRequestDebug {
+  switch (req.provider) {
+    case 'openai': return buildOpenAIRequestDebug(req);
+    case 'anthropic': return buildAnthropicRequestDebug(req);
+    case 'gemini': return buildGeminiRequestDebug(req);
+    case 'perplexity': return buildPerplexityRequestDebug(req);
+    case 'perplexity-agent': return buildPerplexityAgentRequestDebug(req);
     default: throw new Error(`Unknown provider: ${req.provider}`);
   }
 }

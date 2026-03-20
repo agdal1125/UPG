@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { streamLLM } from '@/lib/providers';
+import { buildProviderRequestDebug, streamLLM } from '@/lib/providers';
 import { LLMRequest, StreamChunk } from '@/types';
 import { calculateCost } from '@/lib/pricing';
 
@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as LLMRequest;
+  const streamedRequest = { ...body, stream: true };
+  const requestDebug = buildProviderRequestDebug(streamedRequest);
 
   const encoder = new TextEncoder();
   const startTime = Date.now();
@@ -19,8 +21,10 @@ export async function POST(req: NextRequest) {
       };
 
       try {
+        send({ type: 'meta', requestDebug });
+
         const result = await streamLLM(
-          { ...body, stream: true },
+          streamedRequest,
           (chunk) => send(chunk)
         );
 
@@ -36,9 +40,7 @@ export async function POST(req: NextRequest) {
         });
 
         // Send final metadata
-        controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: 'meta', latencyMs, costUsd })}\n\n`
-        ));
+        send({ type: 'meta', latencyMs, costUsd, requestDebug });
 
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();

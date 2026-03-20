@@ -18,6 +18,11 @@ function mapResultRow(row: Record<string, unknown>) {
     provider: row.provider,
     model: String(row.model ?? ''),
     parameters: String(row.parameters ?? '{}'),
+    requestMethod: row.request_method ? String(row.request_method) : undefined,
+    requestUrl: row.request_url ? String(row.request_url) : undefined,
+    requestHeaders: row.request_headers ? String(row.request_headers) : undefined,
+    requestBody: row.request_body ? String(row.request_body) : undefined,
+    requestCode: row.request_code ? String(row.request_code) : undefined,
     response: String(row.response ?? ''),
     inputTokens: Number(row.input_tokens ?? 0),
     outputTokens: Number(row.output_tokens ?? 0),
@@ -206,10 +211,10 @@ export async function POST(req: NextRequest) {
 
   const insertResult = db.prepare(`
     INSERT INTO test_results (
-      id, run_id, provider, model, parameters, response,
-      input_tokens, output_tokens, cost_usd, latency_ms, status, error
+      id, run_id, provider, model, parameters, request_method, request_url, request_headers, request_body, request_code,
+      response, input_tokens, output_tokens, cost_usd, latency_ms, status, error
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   if (body.results && Array.isArray(body.results)) {
@@ -221,6 +226,11 @@ export async function POST(req: NextRequest) {
           result.provider,
           result.model,
           JSON.stringify(result.parameters || {}),
+          result.requestMethod || null,
+          result.requestUrl || null,
+          result.requestHeaders || null,
+          result.requestBody || null,
+          result.requestCode || null,
           result.response || '',
           result.inputTokens || 0,
           result.outputTokens || 0,

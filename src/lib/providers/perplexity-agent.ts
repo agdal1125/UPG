@@ -1,6 +1,6 @@
 import { LLMRequest, StreamChunk } from '@/types';
 import { ProviderCallResult, StreamCallback } from './index';
-import { appendAdditionalParams } from './shared';
+import { appendAdditionalParams, createRequestDebug } from './shared';
 
 const BASE_URL = 'https://api.perplexity.ai/v1/agent';
 
@@ -48,6 +48,20 @@ function getHeaders() {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
   };
+}
+
+export function buildPerplexityAgentRequestDebug(req: LLMRequest) {
+  const body = buildBody(req);
+  body.stream = true;
+
+  return createRequestDebug(
+    BASE_URL,
+    {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $PERPLEXITY_API_KEY',
+    },
+    body,
+  );
 }
 
 export async function callPerplexityAgent(req: LLMRequest): Promise<ProviderCallResult> {

@@ -69,9 +69,9 @@ export async function POST(req: NextRequest) {
 
     const upsertResult = db.prepare(`
       INSERT OR REPLACE INTO test_results (
-        id, run_id, provider, model, parameters, response, input_tokens, output_tokens,
-        cost_usd, latency_ms, status, error, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, run_id, provider, model, parameters, request_method, request_url, request_headers, request_body, request_code,
+        response, input_tokens, output_tokens, cost_usd, latency_ms, status, error, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const prompt of promptSets) {
@@ -110,6 +110,11 @@ export async function POST(req: NextRequest) {
         result.provider,
         result.model,
         result.parameters ?? '{}',
+        result.request_method ?? null,
+        result.request_url ?? null,
+        result.request_headers ?? null,
+        result.request_body ?? null,
+        result.request_code ?? null,
         result.response ?? '',
         result.input_tokens ?? 0,
         result.output_tokens ?? 0,

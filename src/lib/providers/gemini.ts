@@ -1,6 +1,6 @@
 import { LLMRequest, StreamChunk } from '@/types';
 import { ProviderCallResult, StreamCallback } from './index';
-import { getAdditionalParams } from './shared';
+import { createRequestDebug, getAdditionalParams } from './shared';
 
 const GEMINI_TOP_LEVEL_KEYS = new Set([
   'cachedContent',
@@ -10,9 +10,9 @@ const GEMINI_TOP_LEVEL_KEYS = new Set([
   'labels',
 ]);
 
-function getBaseUrl(model: string, stream: boolean) {
+function getBaseUrl(model: string, stream: boolean, apiKey = process.env.GEMINI_API_KEY || '') {
   const action = stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?';
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:${action}key=${process.env.GEMINI_API_KEY}`;
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:${action}key=${apiKey}`;
 }
 
 function buildBody(req: LLMRequest) {
@@ -65,6 +65,16 @@ function buildBody(req: LLMRequest) {
   }
 
   return body;
+}
+
+export function buildGeminiRequestDebug(req: LLMRequest) {
+  return createRequestDebug(
+    getBaseUrl(req.model, true, '$GEMINI_API_KEY'),
+    {
+      'Content-Type': 'application/json',
+    },
+    buildBody(req),
+  );
 }
 
 export async function callGemini(req: LLMRequest): Promise<ProviderCallResult> {

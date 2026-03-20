@@ -59,6 +59,14 @@ export interface LLMResponse {
   error?: string;
 }
 
+export interface ProviderRequestDebug {
+  method: 'POST';
+  url: string;
+  headers: Record<string, string>;
+  body: Record<string, unknown>;
+  code: string;
+}
+
 export interface PromptSet {
   id: string;
   name: string;
@@ -91,6 +99,11 @@ export interface TestResult {
   provider: Provider;
   model: string;
   parameters: string;
+  requestMethod?: string;
+  requestUrl?: string;
+  requestHeaders?: string;
+  requestBody?: string;
+  requestCode?: string;
   response: string;
   inputTokens: number;
   outputTokens: number;
@@ -102,11 +115,14 @@ export interface TestResult {
 }
 
 export interface StreamChunk {
-  type: 'delta' | 'usage' | 'done' | 'error';
+  type: 'delta' | 'usage' | 'meta' | 'done' | 'error';
   content?: string;
   inputTokens?: number;
   outputTokens?: number;
   error?: string;
   model?: string;
   provider?: Provider;
+  latencyMs?: number;
+  costUsd?: number;
+  requestDebug?: ProviderRequestDebug;
 }

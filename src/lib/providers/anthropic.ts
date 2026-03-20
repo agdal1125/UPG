@@ -1,6 +1,6 @@
 import { LLMRequest, StreamChunk } from '@/types';
 import { ProviderCallResult, StreamCallback } from './index';
-import { appendAdditionalParams } from './shared';
+import { appendAdditionalParams, createRequestDebug } from './shared';
 
 const BASE_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -28,6 +28,18 @@ function getHeaders() {
     'x-api-key': process.env.ANTHROPIC_API_KEY || '',
     'anthropic-version': '2023-06-01',
   };
+}
+
+export function buildAnthropicRequestDebug(req: LLMRequest) {
+  return createRequestDebug(
+    BASE_URL,
+    {
+      'Content-Type': 'application/json',
+      'x-api-key': '$ANTHROPIC_API_KEY',
+      'anthropic-version': '2023-06-01',
+    },
+    buildBody(req, true),
+  );
 }
 
 export async function callAnthropic(req: LLMRequest): Promise<ProviderCallResult> {
