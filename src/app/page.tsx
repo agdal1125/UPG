@@ -194,6 +194,11 @@ export default function PlaygroundPage() {
       }))
     ));
 
+    const batchId = generateId();
+    const batchLabel = renderedPrompts.length === 1
+      ? renderedPrompts[0].label
+      : `NxN Batch (${renderedPrompts.length} prompts x ${store.selectedModels.length} models)`;
+
     entries.forEach((entry) => {
       store.initResult({
         id: entry.id,
@@ -312,12 +317,18 @@ export default function PlaygroundPage() {
     try {
       await Promise.allSettled(renderedPrompts.map(async (prompt) => {
         const promptResults = finalResults.filter((result) => result.promptKey === prompt.key);
+        const promptOrder = renderedPrompts.findIndex((candidate) => candidate.key === prompt.key);
 
         const response = await fetch('/api/history', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            batchId,
+            batchLabel,
             promptSetId: prompt.promptSetId,
+            promptLabel: prompt.label,
+            promptSource: prompt.promptSource,
+            promptOrder,
             systemPrompt: prompt.renderedSystemPrompt,
             userPrompt: prompt.renderedUserPrompt,
             responseFormat: prompt.responseFormat,

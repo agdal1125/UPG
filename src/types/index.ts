@@ -71,7 +71,12 @@ export interface PromptSet {
 
 export interface TestRun {
   id: string;
+  batchId?: string;
+  batchLabel?: string;
   promptSetId?: string;
+  promptLabel?: string;
+  promptSource?: 'draft' | 'saved';
+  promptOrder?: number;
   systemPrompt: string;
   userPrompt: string;
   responseFormat?: string;

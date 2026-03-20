@@ -27,6 +27,7 @@ npm run dev
 - SQLite 영속 저장: `DATABASE_PATH`를 Render persistent disk 경로로 분리
 - 기본 접근 보호: `BASIC_AUTH_ENABLED=true` + 계정 정보로 앱과 API를 함께 보호
 - 헬스체크 엔드포인트: `/api/health`
+- Free tier 백업: History 탭에서 `Export Backup JSON` / `Import Backup JSON` 지원
 
 ### Render 배포 절차
 

@@ -28,6 +28,20 @@ export function getDb(): Database.Database {
   return db;
 }
 
+function ensureColumn(
+  db: Database.Database,
+  tableName: string,
+  columnName: string,
+  definition: string,
+) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
 function initSchema(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS prompt_sets (
@@ -42,7 +56,12 @@ function initSchema(db: Database.Database) {
 
     CREATE TABLE IF NOT EXISTS test_runs (
       id TEXT PRIMARY KEY,
+      batch_id TEXT,
+      batch_label TEXT,
       prompt_set_id TEXT REFERENCES prompt_sets(id),
+      prompt_label TEXT,
+      prompt_source TEXT,
+      prompt_order INTEGER DEFAULT 0,
       system_prompt TEXT,
       user_prompt TEXT,
       response_format TEXT,
@@ -68,5 +87,14 @@ function initSchema(db: Database.Database) {
 
     CREATE INDEX IF NOT EXISTS idx_test_results_run_id ON test_results(run_id);
     CREATE INDEX IF NOT EXISTS idx_test_runs_created_at ON test_runs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_test_runs_batch_id ON test_runs(batch_id);
   `);
+
+  ensureColumn(db, 'test_runs', 'batch_id', 'TEXT');
+  ensureColumn(db, 'test_runs', 'batch_label', 'TEXT');
+  ensureColumn(db, 'test_runs', 'prompt_label', 'TEXT');
+  ensureColumn(db, 'test_runs', 'prompt_source', 'TEXT');
+  ensureColumn(db, 'test_runs', 'prompt_order', 'INTEGER DEFAULT 0');
+
+  db.exec('CREATE INDEX IF NOT EXISTS idx_test_runs_batch_id ON test_runs(batch_id)');
 }

@@ -57,6 +57,10 @@ function isProtectedAction(request: NextRequest) {
     return true;
   }
 
+  if (pathname === '/api/backup' && ['GET', 'POST'].includes(method)) {
+    return true;
+  }
+
   if (pathname === '/api/render-prompt' && method === 'POST') {
     return true;
   }
